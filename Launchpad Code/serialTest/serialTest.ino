@@ -5,7 +5,7 @@ byte msgArray[8];
 
 void setup() {
   // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
   pinMode(LED, OUTPUT);
 //  digitalWrite(LED, LOW);
   Serial.println("Arduino is ready");
@@ -13,17 +13,21 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly: 
-  if (Serial.available()>0) {
-    String receivedMsg = Serial.readString();
-    Serial.println(receivedMsg);
-    if (receivedMsg == "centered") {
+  if (Serial.available()>2) {
+    char receivedMsg = Serial.read();
+//    long int coord = Serial.parseInt();
+//    Serial.println(coord);
+      Serial.println(receivedMsg);
+    if (receivedMsg == 'c') {
       digitalWrite(LED, HIGH);
     }
     else {
       digitalWrite(LED, LOW);
     }
-    
+    delay(10);
   }
+
+//  delay(1000);
 //while (Serial.available() > 0) {
 //    receivedMsg = Serial.read();
 //    Serial.println(receivedMsg + 8);

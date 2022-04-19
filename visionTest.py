@@ -7,7 +7,7 @@ import time
 capture = cv2.VideoCapture(0)
 face_detect = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 scale_percent = 40
-launchpadPort = serial.Serial(port='COM5', baudrate=9600)
+launchpadPort = serial.Serial(port='COM5', baudrate=115200)
 
 while True:
 
@@ -35,24 +35,31 @@ while True:
         # print(center_coord, camera_center)
 
         if abs(camera_center[0] - center_x) < 20:
-            launchpadPort.write("centered".encode())
-            print("centered")
+            launchpadPort.write('c'.encode('utf-8'))
+            # launchpadPort.write((str(center_coord[0]) + 'c').encode('utf-8'))
+            # print("centered")
         elif camera_center[0] - center_x > 0:
-            launchpadPort.write("left".encode())
-            print("left")
+            launchpadPort.write('l'.encode('utf-8'))
+            # launchpadPort.write((str(center_coord[0]) + 'l').encode('utf-8'))
+            # print("left")
         elif camera_center[0] - center_x < 0:
-            launchpadPort.write("right".encode())
-            print("right")
-        else:
-            print("what the fuck")
+            launchpadPort.write('r'.encode('utf-8'))
+            # launchpadPort.write((str(center_coord[0]) + 'r').encode('utf-8'))
+            # print("right")
+        # else:
+            # print("what the fuck")
 
         cv2.rectangle(resized, (x, y), (x+w, y+h), (255, 0, 0), 2)
+        if launchpadPort.inWaiting():
+            msg = launchpadPort.readline().decode('utf-8')
+            print(msg)
         # cv2.circle(resized, center_coord, 10, (0, 255, 0), 1)
         cv2.imshow('facial_detection', resized)
 
-    time.sleep(1)
+    # time.sleep(1)
 
     if cv2.waitKey(1) & 0xff == ord('q'):
+        launchpadPort.flush()
         break
 
 
