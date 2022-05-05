@@ -2,6 +2,7 @@ import time
 import cv2 as cv
 import numpy as np
 import argparse
+import serial 
 
 #parser = argparse.ArgumentParser()
 #parser.add_argument('--input', help='Path to image or video. Skip to capture frames from camera')
@@ -10,6 +11,10 @@ import argparse
 #parser.add_argument('--height', default=368, type=int, help='Resize input to specific height.')
 
 #args = parser.parse_args()
+counter = 0
+last_classified = ""
+launchpad_port = serial.Serial(port='/dev/ttyACM1', baudrate=115200)
+
 BODY_PARTS = {"Nose": 0, "Neck": 1, "RShoulder": 2, "RElbow": 3, "RWrist": 4,
               "LShoulder": 5, "LElbow": 6, "LWrist": 7, "RHip": 8, "RKnee": 9,
               "RAnkle": 10, "LHip": 11, "LKnee": 12, "LAnkle": 13, "REye": 14,
@@ -25,12 +30,39 @@ def detectStop(dict):
     #print(dict)
     if abs(getAngle(dict[1], dict[4])) < 20 and 180 - abs(getAngle(dict[1], dict[7])) < 20:
         print("STOP!")
+        if not last_classified:
+            global counter, last_classified
+            last_classified = "stop"
+        else:
+            if last_classified == "stop":
+                counter += 1
+            else:
+                last_classified = "stop"
+                counter = 0
         print(getAngle(dict[1], dict[4]), getAngle(dict[1], dict[7]))
         #print(dict)
     elif abs(getAngle(dict[1], dict[4])) < 20 and 180 - abs(getAngle(dict[1], dict[7])) > 20:
         print("RIGHT!")
+        if not last_classified:
+            global counter, last_classified
+            last_classified = "right"
+        else:
+            if last_classified == "right":
+                counter += 1
+            else:
+                last_classified = "right"
+                counter = 0
     elif abs(getAngle(dict[1], dict[4])) > 20 and 180 - abs(getAngle(dict[1], dict[7])) < 20:
         print("LEFT!")
+        if not last_classified:
+            global counter, last_classified
+            last_classified = "left"
+        else:
+            if last_classified == "left":
+                counter += 1
+            else:
+                last_classified = "left"
+                counter = 0
     else:
         pass
         #print(getAngle(dict[1], dict[4]), getAngle(dict[1], dict[7]))
@@ -119,6 +151,10 @@ while cv.waitKey(1) < 0:
     #print("Angle", pair_angle)
     if points[1] and points[4] and points[7]:
         detectStop(points)
+    
+    if counter >= 5:
+        # msg = 'c'
+        launchpad_port.write('c'.encode('utf-8'))
 
     end_time = time.time()
     cv.imshow('OpenPose using OpenCV', frame)
