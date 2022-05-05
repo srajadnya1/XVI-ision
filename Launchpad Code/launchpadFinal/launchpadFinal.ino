@@ -31,7 +31,7 @@ int sample_lens[4] = {0};
 #define MODE_WATCH                  2
 #define MODE_LISTEN                 0
 #define MODE_DRIVE                  1
-int timer_mode = MODE_WATCH;
+int timer_mode = MODE_WATCH; // ???
 
 #define DRIVE_FAR                   0
 #define DRIVE_LEFT                  1
@@ -257,6 +257,8 @@ void setup(void) {
 void loop(void) {
   // for tmrw print time steps
 //    Serial.println("start m");
+
+  if (loop_mode == MODE_WATCH) {
     if (Serial.available() > 0 && canRead) {
         int best_index = 0;
         char msg = Serial.read();
@@ -283,6 +285,7 @@ void loop(void) {
         }
         
     }
+  }
   check_encoders();
 //   if (timer_mode == MODE_LISTEN && re_pointer == SIZE){
 //     // Stop motor
@@ -384,7 +387,7 @@ void loop(void) {
       // Completely stop and go back to listen MODE after 3 seconds
       canRead = true;
     //   start_listen_mode();
-    loop_mode = MODE_WATCH;
+      loop_mode = MODE_WATCH;
     }
 
     do_loop = 0;
