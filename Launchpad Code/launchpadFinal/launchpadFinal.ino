@@ -25,7 +25,7 @@
 #define RIGHT_ENCODER               P6_3
 
 #define SAMPLING_INTERVAL           100
-int sample_lens[4] = {0};
+int sample_lens[5] = {0};
 
 // Operation modes
 #define MODE_WATCH                  2
@@ -37,12 +37,13 @@ int timer_mode = MODE_WATCH; // ???
 #define DRIVE_LEFT                  1
 #define DRIVE_CLOSE                 2
 #define DRIVE_RIGHT                 3
+#define DRIVE_CIRCLE                4
 
 #define JOLT_STEPS                  2
 
 int stop_mode = 0;
 
-boolean loop_mode = MODE_DRIVE;
+boolean loop_mode = MODE_WATCH;
 boolean canRead = true;
 int drive_mode = 0;
 
@@ -110,14 +111,26 @@ float delta_ss = 9;
 /*---------------------------*/
 /*    PREPROGRAMMED PATH     */
 /*---------------------------*/
-int run_times[4] = {4000, 2000, 1000, 1600}; // length of commands roughly in ms
+int run_times[4] = {4000, 4000, 1000, 4000}; // length of commands roughly in ms
+int new_run_times[5] = {4000, 4000, 2000, 2000, 12800};
+// design 
 int drive_modes[4] = {DRIVE_FAR, DRIVE_LEFT, DRIVE_CLOSE, DRIVE_RIGHT}; // commands: [DRIVE_STRAIGHT, DRIVE_LEFT, DRIVE_RIGHT]
-
+int new_drive_modes[4] = {DRIVE_CIRCLE, DRIVE_LEFT, DRIVE_FAR, DRIVE_CLOSE};    
 float delta_reference(int i) {
   // YOUR CODE HERE
   // Remember to divide the v* value you use in this function by 5 because of sampling interval differences!
-  if (drive_mode == DRIVE_RIGHT) { // Return a NEGATIVE expression
-    return (v_star * i * CAR_WIDTH)/ (5 * TURN_RADIUS);
+//  if (drive_mode == DRIVE_RIGHT) { // Return a NEGATIVE expression
+//    return (v_star * i * CAR_WIDTH)/ (5 * TURN_RADIUS);
+//  }
+  if (drive_mode == DRIVE_CLOSE) {
+    return -straight_correction(i);
+//    return (v_star * i * CAR_WIDTH)/ (5 * TURN_RADIUS);
+  }
+  else if (drive_mode == DRIVE_FAR) {
+    return straight_correction(i);
+  }
+  else if (drive_mode == DRIVE_CIRCLE) {
+    return -(v_star * i * CAR_WIDTH)/ (5 * TURN_RADIUS);
   }
   else if (drive_mode == DRIVE_LEFT) { // Return a POSITIVE expression
     return -(v_star * i * CAR_WIDTH)/ (5 * TURN_RADIUS);
@@ -131,7 +144,7 @@ float delta_reference(int i) {
 /*      From turning.ino     */
 /*---------------------------*/
 #define INFINITY                    (3.4e+38)
-#define STRAIGHT_RADIUS             5000
+#define STRAIGHT_RADIUS             250
 
 float straight_correction(int i) {
   // YOUR CODE HERE
@@ -244,8 +257,8 @@ void setup(void) {
   pinMode(GREEN_LED, OUTPUT);
   pinMode(MIC_INPUT, INPUT);
 
-  for (int j = 0; j < 4; j++) {
-    sample_lens[j] = run_times[j] / SAMPLING_INTERVAL;
+  for (int j = 0; j < 5; j++) {
+    sample_lens[j] = new_run_times[j] / SAMPLING_INTERVAL;
   }
 
   write_pwm(0, 0);
@@ -259,31 +272,40 @@ void loop(void) {
 //    Serial.println("start m");
 
   if (loop_mode == MODE_WATCH) {
-    if (Serial.available() > 0 && canRead) {
+//    Serial.println("loop");
+    write_pwm(0,0);
+    if (Serial.available() > 0) {
         int best_index = 0;
         char msg = Serial.read();
-        Serial.println("test message");
-        if (msg == 's') {
-            loop_mode = MODE_WATCH;
-            stop_mode = 1;
-        }
-        else {
-            digitalWrite(RED_LED, HIGH);
-            Serial.println(msg);
-            if (msg == 'l') {
-                best_index = 1;
-                Serial.println("left turn");
-            }
-            else if (msg == 'r') {
-                best_index = 3;
-                Serial.println("right turn");
-            }
-            loop_mode = MODE_DRIVE;
-            canRead = false;
-            drive_mode = best_index; // from 0-3, inclusive
-            start_drive_mode();
-        }
-        
+//        Serial.println("test message");
+//        if (msg == 's') {
+//            loop_mode = MODE_WATCH;
+////            stop_mode = 1;
+//        }
+          digitalWrite(RED_LED, HIGH);
+//            Serial.println(msg);
+//            if (msg == '
+          if (msg == 'l') {
+              best_index = DRIVE_LEFT;
+              Serial.println("left turn");
+          }
+          else if (msg == 'r') {
+              best_index = DRIVE_CLOSE;
+              Serial.println("drive close");
+          }
+          else if (msg == 's') {
+            best_index = DRIVE_FAR;
+            Serial.println("drive far");
+          }
+          else if (msg == 'f') {
+            best_index = DRIVE_CIRCLE;
+            Serial.println("drive circle");
+          }
+          loop_mode = MODE_DRIVE;
+//            canRead = false;
+          drive_mode = best_index; // from 0-3, inclusive
+          start_drive_mode();
+      
     }
   }
   check_encoders();
