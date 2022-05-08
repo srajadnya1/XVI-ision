@@ -29,7 +29,7 @@ POSE_PAIRS = [["Neck", "RShoulder"], ["Neck", "LShoulder"], ["RShoulder", "RElbo
 def detectStop(dict):
     #print(dict)
     if abs(getAngle(dict[1], dict[4])) < 20 and 180 - abs(getAngle(dict[1], dict[7])) < 20:
-        print("STOP!")
+        print("Drive Far!")
         if not last_classified:
             global counter, last_classified
             last_classified = "stop"
@@ -39,10 +39,10 @@ def detectStop(dict):
             else:
                 last_classified = "stop"
                 counter = 0
-        print(getAngle(dict[1], dict[4]), getAngle(dict[1], dict[7]))
+        #print(getAngle(dict[1], dict[4]), getAngle(dict[1], dict[7]))
         #print(dict)
     elif abs(getAngle(dict[1], dict[4])) < 20 and 180 - abs(getAngle(dict[1], dict[7])) > 20:
-        print("RIGHT!")
+        print("Drive close")
         if not last_classified:
             global counter, last_classified
             last_classified = "right"
@@ -63,41 +63,44 @@ def detectStop(dict):
             else:
                 last_classified = "left"
                 counter = 0
+    #elif abs(dict[4][0] - dict[7][0]) < 1 and abs(dict[4][1] - dict[7][1]) < 1:
+        #print(dict[4], dict[7])
+        #print("Drive near")
+    
+    elif abs(dict[2][1] - dict[5][1]) == 0 and abs(dict[6][1] - dict[3][1]) == 0 and abs(dict[2][0] - dict[3][0]) == 0 and abs(dict[5][0] - dict[6][0]) == 0 :
+        if not last_classified:
+            global counter, last_classified
+            last_classified = "folded arms"
+        else:
+            if last_classified == "folded arms":
+                counter += 1
+            else:
+                last_classified = "folded arms"
+                counter = 0
+        print("Drive circle!")
     else:
         pass
         #print(getAngle(dict[1], dict[4]), getAngle(dict[1], dict[7]))
     
-"""
-def getAngle(start, end):
-    ang1 = np.arctan2(*start[::-1])
-    ang2 = np.arctan2(*end[::-1])
-    angle_deg = np.rad2deg((ang1 - ang2) % (2 * np.pi))
-    if angle_deg > 180:
-        return angle_deg % 360
-    else:
-        return angle_deg
-"""
 
 def getAngle(start, end):
     ang1 = np.arctan2(start[1] - end[1], start[0] - end[0]) * (180/np.pi)
-    #angle_deg = np.rad2deg(ang1) % 360
     return ang1
 
 
 threshold = 0.3
 
-inWidth = 368
-inHeight = 368
+inWidth = 160
+inHeight = 160
 
 net = cv.dnn.readNetFromTensorflow("graph_opt.pb")
 
-cap = cv.VideoCapture(1)
-#time.sleep(10)
-start_time = time.time()
-end_time = start_time
+cap = cv.VideoCapture(0)
+can_read = True
 print("+++++++++++++START++++++++++++")
 while cv.waitKey(1) < 0:
-#while end_time - start_time < 15:
+    if not can_read:
+        can_read = True
     hasFrame, frame = cap.read()
     if not hasFrame:
         cv.waitKey()
@@ -106,7 +109,6 @@ while cv.waitKey(1) < 0:
     frameWidth = frame.shape[1]
     frameHeight = frame.shape[0]
 
-    #net.setInput(cv.dnn.blobFromImage(frame, 1.0, (inWidth, inHeight), (127.5, 127.5, 127.5), swapRB=False, crop=False))
     net.setInput(cv.dnn.blobFromImage(frame, 1.0, (inWidth, inHeight), (0, 0, 0), swapRB=False, crop=False))
     out = net.forward()
     out = out[:, :19, :, :]  # MobileNet output [1, 57, -1, -1], we only need the first 19 elements
@@ -127,7 +129,8 @@ while cv.waitKey(1) < 0:
         y = (frameHeight * point[1]) / out.shape[2]
         # Add a point if it's confidence is higher than threshold.
         points.append((int(x), int(y)) if conf > threshold else None)
-
+    
+    
     for pair_id, pair in enumerate(POSE_PAIRS):
         partFrom = pair[0]
         partTo = pair[1]
@@ -142,21 +145,35 @@ while cv.waitKey(1) < 0:
             pair_angle[pair_id] = getAngle(points[idFrom], points[idTo])
             cv.line(frame, points[idFrom], points[idTo], (0, 255, 0), 3)
             cv.ellipse(frame, points[idFrom], (3, 3), 0, 0, 360, (0, 0, 255), cv.FILLED)
-            cv.ellipse(frame, points[idTo], (3, 3), 0, 0, 360, (0, 0, 255), cv.FILLED)
+    
 
-    t, _ = net.getPerfProfile()
-    freq = cv.getTickFrequency() / 1000
-    cv.putText(frame, '%.2fms' % (t / freq), (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
+    #t, _ = net.getPerfProfile()
+    #freq = cv.getTickFrequency() / 1000
+    #cv.putText(frame, '%.2fms' % (t / freq), (10, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0))
     #print("Points", points)
     #print("Angle", pair_angle)
-    if points[1] and points[4] and points[7]:
+    if points[1] and points[4] and points[7] and points[5] and points[6] and points[2] and points[3]:
         detectStop(points)
-    
-    if counter >= 5:
-        # msg = 'c'
-        launchpad_port.write('c'.encode('utf-8'))
 
-    end_time = time.time()
-    cv.imshow('OpenPose using OpenCV', frame)
+
+    if counter == 5 and last_classified == "folded arms":
+        msg = last_classified[0]
+        launchpad_port.write(msg.encode('utf-8'))
+        counter = 0
+        print(msg)
+        can_read = False
+
+    if counter == 7:
+        msg = last_classified[0]
+        launchpad_port.write(msg.encode('utf-8'))
+        counter = 0
+        print(msg)
+        can_read = False
+        
+    if launchpad_port.inWaiting():
+            msg = launchpad_port.readline().decode('utf-8')
+            print("Message: ", msg)
+    #cv.imshow('OpenPose using OpenCV', frame)
+    
 
 print("==========END================")
